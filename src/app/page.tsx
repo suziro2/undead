@@ -10,7 +10,7 @@ import InventoryModal from "@/components/game/InventoryModal";
 import SettingsModal from "@/components/game/SettingsModal";
 import LoadingScreen from "@/components/game/LoadingScreen";
 import ArtImage from "@/components/game/ArtImage";
-import { HEROES, HeroDef, CHAPTERS } from "@/lib/gameData";
+import { HEROES, HeroDef, CHAPTERS, ENEMY_TYPES } from "@/lib/gameData";
 import { preloadSprites, waitForSprites } from "@/lib/spriteImages";
 import { sounds } from "@/lib/soundEffects";
 import {
@@ -54,13 +54,14 @@ export default function GameRootPage() {
 
     async function loadCriticalAssets() {
       try {
-        const imageSources = Object.values(HEROES).map((hero) => hero.image);
+        const imageSources: string[] = Object.values(HEROES).map((hero) => hero.image);
+        // All chapters define their battle enemies by type key; include every referenced portrait.
         CHAPTERS.forEach((chapter: any) => {
           if (chapter?.boss?.image) imageSources.push(chapter.boss.image);
           if (Array.isArray(chapter?.levels)) {
             chapter.levels.forEach((level: any) => {
-              if (level?.enemy?.image) imageSources.push(level.enemy.image);
-              if (Array.isArray(level?.enemies)) level.enemies.forEach((enemy: any) => {
+              (level?.enemyTypes || []).forEach((enemyKey: string) => {
+                const enemy = ENEMY_TYPES[enemyKey];
                 if (enemy?.image) imageSources.push(enemy.image);
               });
             });
