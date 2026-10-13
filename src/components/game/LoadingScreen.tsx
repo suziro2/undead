@@ -1,12 +1,29 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { HEROES } from "@/lib/gameData";
 import ArtImage from "@/components/game/ArtImage";
 
 const featuredHeroes = [HEROES.aiden, HEROES.luna, HEROES.riven];
+const loadingTips = [
+  "Tip: Upgrade your attack to defeat tougher undead.",
+  "Tip: Save health potions for elite enemies and bosses.",
+  "Tip: Each hero has a unique skill and combat role.",
+  "Tip: Clear each stage to unlock the next challenge.",
+];
 
-export default function LoadingScreen() {
+interface LoadingScreenProps {
+  progress?: number;
+  error?: string | null;
+  onRetry?: () => void;
+}
+
+export default function LoadingScreen({ progress = 0, error = null, onRetry }: LoadingScreenProps) {
+  const [tipIndex, setTipIndex] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setTipIndex((i) => (i + 1) % loadingTips.length), 3600);
+    return () => window.clearInterval(timer);
+  }, []);
   return (
     <main className="realm-loader" role="status" aria-live="polite" aria-label="Loading Undead Slayer">
       <div className="realm-loader__stars" aria-hidden="true">
@@ -50,8 +67,21 @@ export default function LoadingScreen() {
             </div>
           ))}
         </div>
-        <p className="realm-loader__status"><span className="realm-loader__pulse" /> Restoring your adventure</p>
-        <div className="realm-loader__progress" aria-hidden="true"><span /></div>
+        <p className="realm-loader__status"><span className="realm-loader__pulse" /> {error ? "Some assets need attention" : "Preparing your adventure"}</p>
+        <div className="realm-loader__progress" role="progressbar" aria-label="Loading game assets" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, progress))}>
+          <span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        </div>
+        <p className="realm-loader__percentage">{Math.max(0, Math.min(100, progress))}%</p>
+        <p className="realm-loader__tip" aria-live="polite">{loadingTips[tipIndex]}</p>
+        {error && (
+          <div className="realm-loader__error" role="alert">
+            <p>{error}</p>
+            <div className="realm-loader__error-actions">
+              {onRetry && <button type="button" onClick={onRetry}>RETRY LOADING</button>}
+              <button type="button" onClick={() => window.location.reload()}>RELOAD GAME</button>
+            </div>
+          </div>
+        )}
         <div className="realm-loader__footer">
           <span>10 HERO CLASSES</span><i>◆</i><span>25 STAGES</span><i>◆</i><span>5 CHAPTERS</span>
         </div>
