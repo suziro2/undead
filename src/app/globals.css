@@ -358,3 +358,13 @@ button, input, select, textarea,
   .realm-loader__hero { width:clamp(50px,18vw,72px); }
   .realm-loader__tip { font-size:10px; }
 }
+
+
+/* Game-wide pixel text and crisp canvas rendering */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.realm-loader__progress span {
+  width: auto;
+}
