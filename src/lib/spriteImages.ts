@@ -8,6 +8,78 @@
 const cache = new Map<string, HTMLImageElement>();
 const failed = new Set<string>();
 
+export interface SpritePreloadResult {
+  loaded: number;
+  failed: string[];
+}
+
+/** Wait for real image load/decode completion and report actual byte-backed assets. */
+export function waitForSprites(
+  srcs: Array<string | undefined | null>,
+  onProgress?: (loaded: number, total: number) => void,
+  timeoutMs = 12000,
+): Promise<SpritePreloadResult> {
+  const unique = Array.from(new Set(srcs.filter((src): src is string => Boolean(src))));
+  let completed = 0;
+  const failures: string[] = [];
+  const report = () => onProgress?.(completed, unique.length);
+
+  if (unique.length === 0) {
+    onProgress?.(0, 0);
+    return Promise.resolve({ loaded: 0, failed: [] });
+  }
+
+  return new Promise((resolve) => {
+    let finished = false;
+    const pending = new Set(unique);
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      resolve({ loaded: completed, failed: failures });
+    };
+    const timeout = window.setTimeout(() => {
+      failures.push(...pending);
+      completed += pending.size;
+      pending.clear();
+      report();
+      finish();
+    }, timeoutMs);
+
+    unique.forEach((src) => {
+      const image = new Image();
+      image.decoding = "async";
+      const settle = (ok: boolean) => {
+        if (!pending.delete(src)) return;
+        if (ok) {
+          try { cache.set(src, image); failed.delete(src); }
+          catch { /* cache is an optimization only */ }
+        } else {
+          failures.push(src);
+          failed.add(src);
+          cache.delete(src);
+        }
+        completed += 1;
+        report();
+        if (pending.size === 0) finish();
+      };
+      image.onload = async () => {
+        try {
+          if (typeof image.decode === "function") await image.decode();
+          settle(image.naturalWidth > 0);
+        } catch {
+          settle(image.naturalWidth > 0);
+        }
+      };
+      image.onerror = () => settle(false);
+      image.src = src;
+      if (image.complete && image.naturalWidth > 0) {
+        void image.decode?.().catch(() => undefined).then(() => settle(image.naturalWidth > 0));
+      }
+    });
+  });
+}
+
 export function getSpriteImage(src?: string | null): HTMLImageElement | null {
   if (!src || typeof window === "undefined" || failed.has(src)) return null;
 
