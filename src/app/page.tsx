@@ -11,6 +11,7 @@ import SettingsModal from "@/components/game/SettingsModal";
 import LoadingScreen from "@/components/game/LoadingScreen";
 import ArtImage from "@/components/game/ArtImage";
 import { HEROES, HeroDef, CHAPTERS } from "@/lib/gameData";
+import { preloadSprites, waitForSprites } from "@/lib/spriteImages";
 import { sounds } from "@/lib/soundEffects";
 import {
   Play,
@@ -40,13 +41,56 @@ export default function GameRootPage() {
     user: null,
   });
 
-  // Keep the cinematic intro visible for at least 8 seconds.
-  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(false);
+  // Gate the app on the session request and actual critical-artwork preload.
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [assetLoadError, setAssetLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setMinimumLoadingComplete(true), 8000);
-    return () => window.clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    setAssetsLoaded(false);
+    setAssetLoadError(null);
+
+    async function loadCriticalAssets() {
+      try {
+        const imageSources = Object.values(HEROES).map((hero) => hero.image);
+        CHAPTERS.forEach((chapter: any) => {
+          if (chapter?.boss?.image) imageSources.push(chapter.boss.image);
+          if (Array.isArray(chapter?.levels)) {
+            chapter.levels.forEach((level: any) => {
+              if (level?.enemy?.image) imageSources.push(level.enemy.image);
+              if (Array.isArray(level?.enemies)) level.enemies.forEach((enemy: any) => {
+                if (enemy?.image) imageSources.push(enemy.image);
+              });
+            });
+          }
+        });
+        preloadSprites(imageSources);
+        const result = await waitForSprites(imageSources, (loaded, total) => {
+          if (!cancelled) setLoadProgress(total === 0 ? 100 : Math.round((loaded / total) * 100));
+        });
+        if (cancelled) return;
+        if (result.failed.length) {
+          setAssetLoadError(`Some artwork could not be loaded (${result.failed.length} asset(s)). You can retry or continue with available artwork.`);
+        }
+        setAssetsLoaded(true);
+      } catch (error) {
+        if (!cancelled) {
+          setAssetLoadError("Game artwork could not be prepared. Check your connection and retry.");
+          setAssetsLoaded(false);
+        }
+      }
+    }
+
+    loadCriticalAssets();
+    return () => { cancelled = true; };
+  }, [loadAttempt]);
+
+  const [loadProgress, setLoadProgress] = useState(0);
+  const retryAssetLoading = () => {
+    setLoadProgress(0);
+    setLoadAttempt((attempt) => attempt + 1);
+  };
 
   // Game Progress State
   const [progress, setProgress] = useState<any>(null);
