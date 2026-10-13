@@ -10,7 +10,8 @@ import InventoryModal from "@/components/game/InventoryModal";
 import SettingsModal from "@/components/game/SettingsModal";
 import LoadingScreen from "@/components/game/LoadingScreen";
 import ArtImage from "@/components/game/ArtImage";
-import { HEROES, HeroDef, CHAPTERS } from "@/lib/gameData";
+import { HEROES, HeroDef, CHAPTERS, ENEMY_TYPES } from "@/lib/gameData";
+import { preloadSprites, waitForSprites } from "@/lib/spriteImages";
 import { sounds } from "@/lib/soundEffects";
 import {
   Play,
@@ -40,13 +41,53 @@ export default function GameRootPage() {
     user: null,
   });
 
-  // Keep the cinematic intro visible for at least 8 seconds.
-  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(false);
+  // Gate the app on the session request and actual critical-artwork preload.
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [assetLoadError, setAssetLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setMinimumLoadingComplete(true), 8000);
-    return () => window.clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    setAssetsLoaded(false);
+    setAssetLoadError(null);
+
+    async function loadCriticalAssets() {
+      try {
+        const imageSources: string[] = Object.values(HEROES).map((hero) => hero.image);
+        // Cover the entire first playable set: all hero portraits, every enemy type,
+        // all boss portraits, and all chapter backgrounds that are preloaded as images.
+        Object.values(ENEMY_TYPES).forEach((enemy: any) => {
+          if (enemy?.image) imageSources.push(enemy.image);
+        });
+        CHAPTERS.forEach((chapter: any) => {
+          if (chapter?.boss?.image) imageSources.push(chapter.boss.image);
+        });
+        preloadSprites(imageSources);
+        const result = await waitForSprites(imageSources, (loaded, total) => {
+          if (!cancelled) setLoadProgress(total === 0 ? 100 : Math.round((loaded / total) * 100));
+        });
+        if (cancelled) return;
+        if (result.failed.length) {
+          setAssetLoadError(`Some artwork could not be loaded (${result.failed.length} asset(s)). You can retry or continue with available artwork.`);
+        }
+        setAssetsLoaded(true);
+      } catch (error) {
+        if (!cancelled) {
+          setAssetLoadError("Game artwork could not be prepared. Check your connection and retry.");
+          setAssetsLoaded(false);
+        }
+      }
+    }
+
+    loadCriticalAssets();
+    return () => { cancelled = true; };
+  }, [loadAttempt]);
+
+  const retryAssetLoading = () => {
+    setLoadProgress(0);
+    setLoadAttempt((attempt) => attempt + 1);
+  };
 
   // Game Progress State
   const [progress, setProgress] = useState<any>(null);
@@ -292,8 +333,8 @@ export default function GameRootPage() {
 
   // Keep the cinematic loading screen up until both the session check and
   // the minimum 8-second intro have finished.
-  if (!authState.loaded || !minimumLoadingComplete) {
-    return <LoadingScreen />;
+  if (!authState.loaded || !assetsLoaded) {
+    return <LoadingScreen progress={loadProgress} error={assetLoadError} onRetry={retryAssetLoading} />;
   }
 
   // Not authenticated: Show Login & Register Screen

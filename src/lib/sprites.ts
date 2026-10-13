@@ -147,6 +147,7 @@ function drawPortraitFace(
   ctx.arc(cx, cy, radius * 1.06, 0, Math.PI * 2);
   ctx.stroke();
 
+  ctx.imageSmoothingEnabled = previousSmoothing;
   ctx.restore();
 }
 
@@ -1551,6 +1552,9 @@ function treant(ctx: CanvasRenderingContext2D, kit: SpriteKit, o: DrawOpts) {
 
 export function drawUnit(ctx: CanvasRenderingContext2D, kit: SpriteKit, o: DrawOpts) {
   ctx.save();
+  // Disable canvas interpolation and snap world coordinates to whole pixels.
+  const previousSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(o.x), Math.round(o.y));
   if (o.dead) {
     ctx.globalAlpha = 0.45;
@@ -1652,6 +1656,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, kit: SpriteKit, o: DrawO
     );
   }
 
+  ctx.imageSmoothingEnabled = previousSmoothing;
   ctx.restore();
 }
 
@@ -1669,6 +1674,8 @@ export function drawTerrainProp(
   theme: string[]
 ) {
   ctx.save();
+  const previousSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y));
 
   ctx.fillStyle = "rgba(0,0,0,0.38)";
