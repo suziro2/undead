@@ -7,9 +7,10 @@ import type { SpriteKit } from "@/lib/sprites";
 import { drawUnit, drawTerrainProp } from "@/lib/sprites";
 import { getSpriteImage, preloadSprites, HERO_CROP, MONSTER_CROP } from "@/lib/spriteImages";
 import { sounds } from "@/lib/soundEffects";
+import type { FeaturedModeConfig } from "@/lib/featured";
 import {
   Heart, Zap, Sword, Pause, Play, ArrowLeft, Trophy, Skull, Map as MapIcon,
-  Crown, Flame, Shield, Wind, Coins, DoorOpen, Sparkles,
+  Crown, Flame, Shield, Wind, Coins, DoorOpen, Sparkles, Star,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -21,6 +22,8 @@ interface CombatEngineProps {
   equippedStats: { atk: number; hp: number; def: number; crit: number };
   healthPotions: number;
   settings: { musicVolume: number; sfxVolume: number; autoTarget: boolean; screenShake: boolean; damageNumbers: boolean };
+  /** FEATURED event configuration (boosted rewards, endless rooms, boss finale). */
+  mode?: FeaturedModeConfig | null;
   onBattleEnd: (result: {
     victory: boolean;
     rewardCoins: number;
@@ -28,6 +31,8 @@ interface CombatEngineProps {
     potionsUsed: number;
     bossDefeated?: boolean;
     dropItem?: any;
+    /** Rooms the hero actually cleared — used for Endless Trial records. */
+    roomsCleared?: number;
   }) => void;
   onExit: () => void;
 }
@@ -120,7 +125,7 @@ function resolveObstacleCollision(pos: { x: number; y: number }, radius: number,
 
 export default function CombatEngine({
   heroId, chapterId, levelNumber, statUpgrades, equippedStats,
-  healthPotions: initialPotions, settings, onBattleEnd, onExit,
+  healthPotions: initialPotions, settings, mode = null, onBattleEnd, onExit,
 }: CombatEngineProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -129,7 +134,11 @@ export default function CombatEngine({
   const levelDef: LevelDef = chapter.levels.find((l) => l.levelNumber === levelNumber) || chapter.levels[0];
   const bossDef: BossDef = chapter.boss;
 
-  const totalRooms = levelDef.waveCount;
+  // ---- FEATURED event overrides -------------------------------------------
+  const isFeaturedRun = !!mode && mode.kind !== "campaign";
+  const totalRooms = mode?.roomCount ?? levelDef.waveCount;
+  const isBossStage = levelDef.isBossLevel || !!mode?.bossFinale;
+  const rewardMultiplier = mode?.rewardMultiplier ?? 1;
 
   const attackMultiplier = 1 + (statUpgrades.attackLevel - 1) * 0.15;
   const healthMultiplier = 1 + (statUpgrades.healthLevel - 1) * 0.18;
@@ -618,7 +627,7 @@ export default function CombatEngine({
     }
   }, [heroDef, skillMultiplier, gameOver, blessingOptions]);
 
-  const useHealthPotion = useCallback(() => {
+  const drinkHealthPotion = useCallback(() => {
     const s = stateRef.current;
     if (potionsCount <= 0 || s.hero.hp >= heroMaxHpNow() || gameOver || blessingOptions) return;
     sounds.playPotion();
@@ -694,16 +703,19 @@ export default function CombatEngine({
     s.zones = [];
 
     const isFinalRoom = room >= totalRooms;
+    // Endless trials make every room deadlier than the last (no-op for campaign runs).
+    const scale = 1 + (mode?.scalePerRoom ?? 0) * Math.max(0, room - 1);
 
-    if (levelDef.isBossLevel && isFinalRoom && !s.bossSpawned) {
+    if (isBossStage && isFinalRoom && !s.bossSpawned) {
       s.bossSpawned = true;
       sounds.playBossRoar();
       say(`${bossDef.name.toUpperCase()} — ${bossDef.title.toUpperCase()}`, 3600);
+      const bossHp = Math.round(bossDef.hp * (isFeaturedRun && mode?.bossFinale ? scale * 0.85 : 1));
       const boss: EnemyEntity = {
         id: Math.random(), typeKey: bossDef.key, name: bossDef.name, avatar: bossDef.avatar,
         image: bossDef.image,
         sprite: bossDef.sprite, x: 720, y: 340,
-        hp: bossDef.hp, maxHp: bossDef.hp, atk: bossDef.atk, speed: bossDef.spd,
+        hp: bossHp, maxHp: bossHp, atk: bossDef.atk, speed: bossDef.spd,
         color: bossDef.color, radius: bossDef.sprite.scale * 5.2, attackRange: 105,
         isBoss: true, isElite: false, bossPhase: 1, bossKey: bossDef.key,
         attackCooldown: 1.5, specialTimer: 3.0, chargeTimer: 0,
@@ -722,11 +734,11 @@ export default function CombatEngine({
       const side = Math.random();
       const x = side > 0.5 ? ARENA.maxX - 20 - Math.random() * 120 : ARENA.minX + 160 + Math.random() * 220;
       const y = ARENA.minY + 24 + Math.random() * (ARENA.maxY - ARENA.minY - 48);
-      const hp = Math.round(data.baseHp * (1 + chapterId * 0.3 + levelNumber * 0.1));
+      const hp = Math.round(data.baseHp * (1 + chapterId * 0.3 + levelNumber * 0.1) * scale);
       s.enemies.push({
         id: Math.random(), typeKey: key, name: data.name, avatar: data.avatar, image: data.image, sprite: data.sprite,
         x, y, hp, maxHp: hp,
-        atk: Math.round(data.baseAtk * (1 + chapterId * 0.26 + levelNumber * 0.08)),
+        atk: Math.round(data.baseAtk * (1 + chapterId * 0.26 + levelNumber * 0.08) * (1 + (scale - 1) * 0.55)),
         speed: data.speed, color: data.color, radius: data.sprite.scale * 3.1,
         attackRange: data.attackRange, isBoss: false, isElite: false, bossPhase: 0,
         isRanged: data.isRanged, attackCooldown: 1.1 + Math.random() * 0.6,
@@ -739,7 +751,7 @@ export default function CombatEngine({
     if (room >= 2) {
       const eKey = levelDef.eliteTypes.length ? levelDef.eliteTypes[Math.floor(Math.random() * levelDef.eliteTypes.length)] : levelDef.enemyTypes[0];
       const data = ENEMY_TYPES[eKey] || ENEMY_TYPES.zombie;
-      const hp = Math.round(data.baseHp * (1 + chapterId * 0.3 + levelNumber * 0.1) * 4.2);
+      const hp = Math.round(data.baseHp * (1 + chapterId * 0.3 + levelNumber * 0.1) * 4.2 * scale);
       s.enemies.push({
         id: Math.random(), typeKey: eKey, name: `Elite ${data.name}`, avatar: data.avatar,
         image: data.image,
@@ -754,8 +766,19 @@ export default function CombatEngine({
       });
     }
     setEliteCount(s.enemies.filter((e) => e.isElite).length);
-    if (room === 1) say(`ROOM 1 — CLEAR ALL ENEMIES TO OPEN THE DOOR`, 2600);
-  }, [levelDef, chapterId, levelNumber, bossDef, chapter.terrainKind, totalRooms]);
+    if (room === 1) {
+      if (isFeaturedRun && mode) {
+        say(
+          mode.kind === "endless"
+            ? `${mode.label.toUpperCase()} — SURVIVE ${totalRooms} SCALING ROOMS`
+            : `${mode.label.toUpperCase()} — LOOT BOOST ×${mode.rewardMultiplier} ACTIVE`,
+          3200
+        );
+      } else {
+        say(`ROOM 1 — CLEAR ALL ENEMIES TO OPEN THE DOOR`, 2600);
+      }
+    }
+  }, [levelDef, chapterId, levelNumber, bossDef, chapter.terrainKind, totalRooms, mode, isFeaturedRun, isBossStage]);
 
   const nextRoom = useCallback(() => {
     const s = stateRef.current;
@@ -784,7 +807,7 @@ export default function CombatEngine({
       if (e.key === "j" || e.key === " " || e.key === "x") { k.attack = true; e.preventDefault(); }
       if (e.key === "k" || e.key === "c") triggerHeroSkill();
       if (e.key === "l" || e.key === "Shift") doDash();
-      if (e.key === "q" || e.key === "h") useHealthPotion();
+      if (e.key === "q" || e.key === "h") drinkHealthPotion();
       if (e.key === "m") setShowBigMap((v) => !v);
       if (e.key === "p" || e.key === "Escape") setIsPaused((v) => !v);
     };
@@ -1093,17 +1116,22 @@ export default function CombatEngine({
             setGameOver("victory");
             sounds.playVictory();
             try { confetti({ particleCount: 90, spread: 78, origin: { y: 0.6 } }); } catch {}
-            const isBossVictory = levelDef.isBossLevel;
+            const isBossVictory = isBossStage;
             const eliteBonus = Math.round(s.elitesKilled * levelDef.rewardCoins * 0.2);
+            const roomBonus = (mode?.perRoomBonus ?? 0) * totalRooms;
             const dropItem = isBossVictory ? chapter.completionReward.item : null;
             setTimeout(() => {
               onBattleEnd({
                 victory: true,
-                rewardCoins: levelDef.rewardCoins + s.coinsCollected + eliteBonus + (isBossVictory ? chapter.completionReward.coins : 0),
-                rewardXp: levelDef.rewardXp + (isBossVictory ? chapter.completionReward.xp : 0),
+                rewardCoins: Math.round(
+                  (levelDef.rewardCoins + s.coinsCollected + eliteBonus + roomBonus + (isBossVictory ? chapter.completionReward.coins : 0)) *
+                    rewardMultiplier
+                ),
+                rewardXp: Math.round((levelDef.rewardXp + (isBossVictory ? chapter.completionReward.xp : 0)) * rewardMultiplier),
                 potionsUsed: s.potionsUsed,
                 bossDefeated: isBossVictory,
                 dropItem,
+                roomsCleared: s.room,
               });
             }, 2600);
           } else {
@@ -1119,9 +1147,10 @@ export default function CombatEngine({
           setTimeout(() => {
             onBattleEnd({
               victory: false,
-              rewardCoins: Math.round(levelDef.rewardCoins * 0.2) + s.coinsCollected,
+              rewardCoins: Math.round((Math.round(levelDef.rewardCoins * 0.2) + s.coinsCollected) * rewardMultiplier),
               rewardXp: Math.round(levelDef.rewardXp * 0.25),
               potionsUsed: s.potionsUsed,
+              roomsCleared: Math.max(0, s.room - 1),
             });
           }, 2400);
         }
@@ -1610,7 +1639,7 @@ export default function CombatEngine({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [isPaused, gameOver, blessingOptions, showBigMap, settings, heroDef, chapter, chapterId, levelDef, levelNumber, bossDef, totalRooms, spawnRoom, nextRoom, triggerHeroSkill, useHealthPotion, doDash, offerBlessing, onBattleEnd]);
+  }, [isPaused, gameOver, blessingOptions, showBigMap, settings, heroDef, chapter, chapterId, levelDef, levelNumber, bossDef, totalRooms, mode, isBossStage, isFeaturedRun, rewardMultiplier, spawnRoom, nextRoom, triggerHeroSkill, drinkHealthPotion, doDash, offerBlessing, onBattleEnd]);
 
   /* ---------------- touch controls ---------------- */
 
@@ -1671,15 +1700,22 @@ export default function CombatEngine({
         {/* room plate */}
         <div className="panel rounded-2xl px-3.5 py-2 text-center hidden sm:block">
           <div className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">
-            {chapter.title} · Stage {levelNumber}
+            {isFeaturedRun && mode
+              ? mode.label
+              : `${chapter.title} · Stage ${levelNumber}`}
           </div>
           <div className="text-[11px] text-white font-semibold mt-0.5 flex items-center justify-center gap-1.5">
             <DoorOpen className="w-3.5 h-3.5 text-amber-400" />
-            Room {roomNo}/{totalRooms}{levelDef.isBossLevel && roomNo >= totalRooms ? " ★ BOSS" : ""}
+            Room {roomNo}/{totalRooms}{isBossStage && roomNo >= totalRooms ? " ★ BOSS" : ""}
           </div>
           <div className="text-[9px] text-neutral-400 mt-0.5">
             Kills {killCount}{eliteCount > 0 ? ` · Elites x${eliteCount}` : ""}
           </div>
+          {isFeaturedRun && (
+            <div className="text-[9px] mt-0.5 font-bold uppercase tracking-wide flex items-center justify-center gap-1" style={{ color: mode?.accent || "#fbbf24" }}>
+              <Star className="w-3 h-3" fill="currentColor" /> Loot ×{rewardMultiplier}
+            </div>
+          )}
         </div>
 
         {/* coins + buttons */}
@@ -1798,20 +1834,29 @@ export default function CombatEngine({
                   <div className="w-20 h-20 rounded-full bg-amber-500/15 border-2 border-amber-400 flex items-center justify-center text-amber-300 mb-4 float-soft">
                     <Trophy className="w-10 h-10" />
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-300 uppercase tracking-wide">Stage Cleared!</h2>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-300 uppercase tracking-wide">
+                    {isFeaturedRun && mode ? `${mode.label} Cleared!` : "Stage Cleared!"}
+                  </h2>
                   <p className="text-xs text-neutral-400 mt-2 mb-4 max-w-sm">
-                    All {totalRooms} rooms purged{levelDef.isBossLevel ? ` and ${bossDef.name} has fallen` : ""}. Collecting rewards...
+                    All {totalRooms} rooms purged{isBossStage ? ` and ${bossDef.name} has fallen` : ""}. Collecting rewards...
                   </p>
                   <div className="panel rounded-2xl px-5 py-3.5 flex gap-6 text-center">
                     <div>
                       <div className="text-[10px] text-neutral-400 uppercase">Coins</div>
-                      <div className="text-lg text-amber-300 font-mono font-bold">+{levelDef.rewardCoins + runCoins}</div>
+                      <div className="text-lg text-amber-300 font-mono font-bold">
+                        +{Math.round((levelDef.rewardCoins + runCoins + (mode?.perRoomBonus ?? 0) * totalRooms) * rewardMultiplier)}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[10px] text-neutral-400 uppercase">XP</div>
-                      <div className="text-lg text-cyan-300 font-mono font-bold">+{levelDef.rewardXp}</div>
+                      <div className="text-lg text-cyan-300 font-mono font-bold">+{Math.round(levelDef.rewardXp * rewardMultiplier)}</div>
                     </div>
                   </div>
+                  {isFeaturedRun && (
+                    <div className="text-[10px] mt-3 uppercase tracking-wider font-bold" style={{ color: mode?.accent || "#fbbf24" }}>
+                      ★ Featured event — story progress untouched
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -1881,7 +1926,7 @@ export default function CombatEngine({
         {/* action buttons */}
         <div className="flex items-end gap-2.5 shrink-0">
           <button
-            onClick={useHealthPotion}
+            onClick={drinkHealthPotion}
             disabled={potionsCount <= 0 || hp >= maxHpUi}
             className="btn-3d relative w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-b from-red-800 to-red-950 border-2 border-red-600/60 text-red-200 flex flex-col items-center justify-center px-3 py-3"
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import AuthModal from "@/components/auth/AuthModal";
 import CombatEngine from "@/components/game/CombatEngine";
 import CharacterSelectModal from "@/components/game/CharacterSelectModal";
@@ -9,9 +9,27 @@ import UpgradesModal from "@/components/game/UpgradesModal";
 import InventoryModal from "@/components/game/InventoryModal";
 import SettingsModal from "@/components/game/SettingsModal";
 import LoadingScreen from "@/components/game/LoadingScreen";
+import FeaturedShowcase from "@/components/game/FeaturedShowcase";
+import EpilogueModal from "@/components/game/EpilogueModal";
 import ArtImage from "@/components/game/ArtImage";
 import { HEROES, HeroDef, CHAPTERS } from "@/lib/gameData";
 import { sounds } from "@/lib/soundEffects";
+import {
+  FEATURED_HERO_COIN_BONUS,
+  FEATURED_HERO_XP_BONUS,
+  getFeaturedEvents,
+  getFeaturedHero,
+  getFeaturedRoster,
+  isEventBonusClaimed,
+  isHeroFeatured,
+  loadFeaturedState,
+  markEventBonusClaimed,
+  saveFeaturedState,
+  type FeaturedEvent,
+  type FeaturedModeConfig,
+  type FeaturedState,
+} from "@/lib/featured";
+import { clearGuestProgress, saveGuestProgress } from "@/lib/guestProgress";
 import {
   Play,
   Swords,
@@ -40,6 +58,11 @@ export default function GameRootPage() {
     user: null,
   });
 
+  /** "account" = Postgres cloud save, "guest" = localStorage offline profile. */
+  const [sessionMode, setSessionMode] = useState<"account" | "guest">("account");
+  /** Set to false when /api/auth/me reports the database is not configured. */
+  const [cloudAvailable, setCloudAvailable] = useState(true);
+
   // Keep the cinematic intro visible for at least 8 seconds.
   const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(false);
 
@@ -54,6 +77,12 @@ export default function GameRootPage() {
   // Active Screen / Modals
   const [currentMode, setCurrentMode] = useState<"menu" | "combat">("menu");
   const [combatStage, setCombatStage] = useState<{ chapterId: number; levelNumber: number } | null>(null);
+  /** Non-null while a FEATURED event run is in progress. */
+  const [activeMode, setActiveMode] = useState<FeaturedModeConfig | null>(null);
+  // Read the daily featured bookkeeping straight from storage. Safe for SSR: the
+  // loading screen renders on both server and client until the session resolves.
+  const [featuredState, setFeaturedState] = useState<FeaturedState>(() => loadFeaturedState());
+  const [rewardToast, setRewardToast] = useState<string | null>(null);
 
   // Modals
   const [showHeroesModal, setShowHeroesModal] = useState(false);
@@ -61,6 +90,8 @@ export default function GameRootPage() {
   const [showUpgradesModal, setShowUpgradesModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  /** End-of-campaign epilogue (Chapter 5 boss defeated / all 25 stages cleared). */
+  const [showEpilogue, setShowEpilogue] = useState(false);
 
   // Load Session on mount
   useEffect(() => {
@@ -68,6 +99,16 @@ export default function GameRootPage() {
       try {
         const res = await fetch("/api/auth/me");
         const data = await res.json();
+        if (
+          res.status === 503 ||
+          (typeof data?.error === "string" && /database is not configured/i.test(data.error))
+        ) {
+          // No Postgres in this environment: offer offline guest play instead of
+          // dead-ending on an unusable login form.
+          setCloudAvailable(false);
+          setAuthState({ loaded: true, authenticated: false, user: null });
+          return;
+        }
         if (data.authenticated && data.user) {
           setAuthState({ loaded: true, authenticated: true, user: data.user });
           setProgress(data.progress);
@@ -75,15 +116,39 @@ export default function GameRootPage() {
           setAuthState({ loaded: true, authenticated: false, user: null });
         }
       } catch (err) {
+        setCloudAvailable(false);
         setAuthState({ loaded: true, authenticated: false, user: null });
       }
     }
     checkSession();
   }, []);
 
-  // Sync / Save progress to backend
+  // Rotating FEATURED content: the spotlight prefers classes the player owns.
+  const unlockedHeroKey = (progress?.unlockedHeroes || []).join(",");
+  const featuredHero = useMemo(
+    () => getFeaturedHero(new Date(), unlockedHeroKey ? unlockedHeroKey.split(",") : undefined),
+    [unlockedHeroKey]
+  );
+  const featuredRoster = useMemo(() => getFeaturedRoster(), []);
+  const featuredEvents = useMemo(() => getFeaturedEvents(progress), [progress]);
+
+  // Guests persist every change locally (battle rewards, unlocks, purchases...).
+  useEffect(() => {
+    if (sessionMode === "guest" && progress) saveGuestProgress(progress);
+  }, [progress, sessionMode]);
+
+  const flashRewardToast = (text: string) => {
+    setRewardToast(text);
+    window.setTimeout(() => setRewardToast(null), 6000);
+  };
+
+  // Sync / Save progress: cloud for accounts, localStorage for guests
   const saveProgressToDb = async (newProgress: any) => {
     setProgress(newProgress);
+    if (sessionMode === "guest") {
+      saveGuestProgress(newProgress);
+      return;
+    }
     try {
       await fetch("/api/game/progress", {
         method: "POST",
@@ -95,26 +160,48 @@ export default function GameRootPage() {
     }
   };
 
-  const handleAuthSuccess = (user: { id: number; username: string }, userProgress: any) => {
+  const handleAuthSuccess = (
+    user: { id: number; username: string },
+    userProgress: any,
+    mode: "account" | "guest" = "account"
+  ) => {
+    setSessionMode(mode);
     setAuthState({ loaded: true, authenticated: true, user });
     setProgress(userProgress);
+    setActiveMode(null);
     setCurrentMode("menu");
   };
 
   const handleLogout = async () => {
     sounds.playClick();
-    await fetch("/api/auth/logout", { method: "POST" });
+    if (sessionMode === "guest") {
+      clearGuestProgress();
+    } else {
+      await fetch("/api/auth/logout", { method: "POST" });
+    }
+    setSessionMode("account");
     setAuthState({ loaded: true, authenticated: false, user: null });
     setProgress(null);
+    setActiveMode(null);
     setCurrentMode("menu");
   };
 
-  // Launch combat level
+  // Launch a campaign level from the world map
   const handleStartLevel = (chapterId: number, levelNumber: number) => {
     setShowChaptersModal(false);
+    setActiveMode(null);
     setCombatStage({ chapterId, levelNumber });
     setCurrentMode("combat");
   };
+
+  // Launch a FEATURED event run (boosted rewards, never touches story progress)
+  const handleStartFeaturedEvent = (event: FeaturedEvent) => {
+    setFeaturedState((prev) => saveFeaturedState({ ...prev, lastPlayedEventId: event.kind }));
+    setActiveMode(event.mode);
+    setCombatStage({ chapterId: event.chapterId, levelNumber: event.levelNumber });
+    setCurrentMode("combat");
+  };
+
 
   // Quick continue
   const handleContinueAdventure = () => {
@@ -132,15 +219,58 @@ export default function GameRootPage() {
     potionsUsed: number;
     bossDefeated?: boolean;
     dropItem?: any;
+    roomsCleared?: number;
   }) => {
     if (!combatStage || !progress) {
       setCurrentMode("menu");
       return;
     }
 
+    const isFeaturedRun = !!activeMode;
     const stageKey = `${combatStage.chapterId}-${combatStage.levelNumber}`;
-    const newCoins = progress.coins + result.rewardCoins;
-    const newXp = progress.xp + result.rewardXp;
+
+    let gainedCoins = result.rewardCoins;
+    let gainedXp = result.rewardXp;
+    let nextFeaturedState: FeaturedState = featuredState;
+    const toasts: string[] = [];
+
+    // ---- FEATURED rewards ----
+    if (isFeaturedRun && activeMode) {
+      // Daily first-clear chest (victory only).
+      if (result.victory) {
+        const event = featuredEvents.find((e) => e.kind === activeMode.kind);
+        if (event && !isEventBonusClaimed(event.kind, featuredState)) {
+          gainedCoins += event.firstClearChest;
+          nextFeaturedState = markEventBonusClaimed(nextFeaturedState, event.kind);
+          toasts.push(`${event.title} first-clear chest +${event.firstClearChest.toLocaleString()} coins`);
+        }
+      }
+      // Endless Trial records the deepest room reached, win or lose.
+      if (activeMode.kind === "endless") {
+        const rooms = result.roomsCleared || 0;
+        const best = Math.max(nextFeaturedState.endlessBestRooms || 0, rooms);
+        if (best > (nextFeaturedState.endlessBestRooms || 0)) {
+          nextFeaturedState = saveFeaturedState({ ...nextFeaturedState, endlessBestRooms: best });
+          toasts.push(`New Endless Trial record: ${best} room${best === 1 ? "" : "s"}`);
+        } else if (rooms > 0) {
+          toasts.push(`Endless Trial: ${rooms} room${rooms === 1 ? "" : "s"} cleared (best ${best})`);
+        }
+      }
+    }
+
+    // ---- Featured Hero of the Day perks (campaign runs only) ----
+    if (!isFeaturedRun && result.victory && (progress.selectedHeroId || "aiden") === featuredHero.heroId) {
+      const xpBonus = Math.round(result.rewardXp * FEATURED_HERO_XP_BONUS);
+      const coinBonus = Math.round(result.rewardCoins * FEATURED_HERO_COIN_BONUS);
+      gainedXp += xpBonus;
+      gainedCoins += coinBonus;
+      toasts.push(
+        `Featured hero bonus +${xpBonus} XP · +${coinBonus} coins`
+      );
+    }
+
+    const newCoins = progress.coins + gainedCoins;
+    const newXp = progress.xp + gainedXp;
     const newPotions = Math.max(0, progress.healthPotions - result.potionsUsed);
 
     // Calculate player rank
@@ -150,7 +280,8 @@ export default function GameRootPage() {
     let newHighestChapter = progress.highestChapterUnlocked;
     let newHighestLevel = progress.highestLevelUnlocked;
 
-    if (result.victory) {
+    // Featured events never advance (or re-complete) the story campaign.
+    if (!isFeaturedRun && result.victory) {
       completed.add(stageKey);
 
       // Unlock next level or next chapter
@@ -201,7 +332,23 @@ export default function GameRootPage() {
     };
 
     await saveProgressToDb(updated);
+    if (toasts.length) {
+      setFeaturedState(nextFeaturedState);
+      flashRewardToast(toasts.join(" · "));
+    }
+
+    // Final boss down: roll the campaign epilogue.
+    if (!isFeaturedRun && result.victory && result.bossDefeated && combatStage.chapterId >= CHAPTERS.length && combatStage.levelNumber >= 5) {
+      setShowEpilogue(true);
+    }
+
+    setActiveMode(null);
     setCurrentMode("menu");
+  };
+
+  const handleEndlessTrial = () => {
+    const endless = featuredEvents.find((e) => e.kind === "endless");
+    if (endless) handleStartFeaturedEvent(endless);
   };
 
   // Hero Selection & Unlock
@@ -296,9 +443,9 @@ export default function GameRootPage() {
     return <LoadingScreen />;
   }
 
-  // Not authenticated: Show Login & Register Screen
+  // Not authenticated: cloud sign-in, or offline guest play
   if (!authState.authenticated || !progress) {
-    return <AuthModal onSuccess={handleAuthSuccess} />;
+    return <AuthModal onSuccess={handleAuthSuccess} cloudAvailable={cloudAvailable} />;
   }
 
   // In-game combat mode
@@ -312,8 +459,12 @@ export default function GameRootPage() {
         equippedStats={getEquippedStats()}
         healthPotions={progress.healthPotions}
         settings={progress.settings}
+        mode={activeMode}
         onBattleEnd={handleBattleEnd}
-        onExit={() => setCurrentMode("menu")}
+        onExit={() => {
+          setActiveMode(null);
+          setCurrentMode("menu");
+        }}
       />
     );
   }
@@ -360,6 +511,11 @@ export default function GameRootPage() {
 
           <div className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-semibold">
             <span className="text-neutral-300">{authState.user?.username}</span>
+            {sessionMode === "guest" && (
+              <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-bold text-[10px] uppercase tracking-wide">
+                Offline save
+              </span>
+            )}
             <span className="bg-amber-950 text-amber-400 border border-amber-800 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
               Lv.{progress.level}
             </span>
@@ -380,6 +536,20 @@ export default function GameRootPage() {
 
       {/* Main Sanctuary Dashboard */}
       <main className="flex-1 relative z-10 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col justify-between gap-8">
+        {/* ===== FEATURED SPOTLIGHT (hero of the day + limited events) ===== */}
+        <FeaturedShowcase
+          progress={progress}
+          spotlight={featuredHero}
+          roster={featuredRoster}
+          events={featuredEvents}
+          featuredState={featuredState}
+          rewardToast={rewardToast}
+          onSelectHero={handleSelectHero}
+          onUnlockHero={handleUnlockHero}
+          onOpenRoster={() => setShowHeroesModal(true)}
+          onStartEvent={handleStartFeaturedEvent}
+        />
+
         {/* Top Hero & Campaign Status Spotlight */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Active Champion Spotlight Card */}
@@ -488,6 +658,17 @@ export default function GameRootPage() {
               >
                 <Compass className="w-4 h-4" /> Explore World Map · 5 Chapters
               </button>
+              {(progress.completedLevels?.length || 0) >= 25 && (
+                <button
+                  onClick={() => {
+                    sounds.playClick();
+                    setShowEpilogue(true);
+                  }}
+                  className="btn-3d w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600/30 to-rose-600/30 hover:from-amber-600/45 hover:to-rose-600/45 border border-amber-500/50 text-amber-200 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
+                >
+                  <Trophy className="w-4 h-4" /> Replay Campaign Epilogue
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -567,6 +748,15 @@ export default function GameRootPage() {
         </div>
       </main>
 
+      {/* End-of-campaign epilogue */}
+      {showEpilogue && (
+        <EpilogueModal
+          progress={progress}
+          onClose={() => setShowEpilogue(false)}
+          onEndlessTrial={handleEndlessTrial}
+        />
+      )}
+
       {/* Modals */}
       {showHeroesModal && (
         <CharacterSelectModal
@@ -574,6 +764,7 @@ export default function GameRootPage() {
           unlockedHeroes={progress.unlockedHeroes || ["aiden"]}
           heroLevels={progress.heroLevels || {}}
           playerCoins={progress.coins || 0}
+          featuredHeroId={featuredHero.heroId}
           onSelectHero={handleSelectHero}
           onUnlockHero={handleUnlockHero}
           onClose={() => setShowHeroesModal(false)}

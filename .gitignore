@@ -12,3 +12,8 @@ coverage/
 
 *.log
 .DS_Store
+
+# Next.js generated type shims / TS build cache / lockfile from local runs
+next-env.d.ts
+*.tsbuildinfo
+package-lock.json

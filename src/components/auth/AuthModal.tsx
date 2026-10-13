@@ -2,13 +2,16 @@
 
 import React, { useState } from "react";
 import { sounds } from "@/lib/soundEffects";
-import { Eye, EyeOff, ShieldAlert, Sparkles, LogIn, UserPlus } from "lucide-react";
+import { createDefaultProgress, GUEST_USER, loadGuestProgress } from "@/lib/guestProgress";
+import { Eye, EyeOff, ShieldAlert, Sparkles, LogIn, UserPlus, Play, CloudOff } from "lucide-react";
 
 interface AuthModalProps {
-  onSuccess: (user: { id: number; username: string }, progress: any) => void;
+  onSuccess: (user: { id: number; username: string }, progress: any, mode: "account" | "guest") => void;
+  /** False when the server has no database configured (cloud saves offline). */
+  cloudAvailable?: boolean;
 }
 
-export default function AuthModal({ onSuccess }: AuthModalProps) {
+export default function AuthModal({ onSuccess, cloudAvailable = true }: AuthModalProps) {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -66,12 +69,22 @@ export default function AuthModal({ onSuccess }: AuthModalProps) {
       } catch (e) {
         // audio context resume error or user gesture constraint
       }
-      onSuccess(data.user, data.progress);
+      onSuccess(data.user, data.progress, "account");
     } catch (err: any) {
       setError("Network error connecting to game server.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGuestPlay = () => {
+    sounds.playClick();
+    try {
+      sounds.playVictory();
+    } catch {
+      /* audio may be blocked before the first gesture */
+    }
+    onSuccess(GUEST_USER, loadGuestProgress() || createDefaultProgress(), "guest");
   };
 
   return (
@@ -126,6 +139,17 @@ export default function AuthModal({ onSuccess }: AuthModalProps) {
             <UserPlus className="w-3.5 h-3.5" /> Create Account
           </button>
         </div>
+
+        {/* Cloud save status */}
+        {!cloudAvailable && (
+          <div className="mb-4 p-3 rounded-2xl bg-amber-950/50 border border-amber-700/60 text-amber-200 text-[11px] flex items-start gap-2">
+            <CloudOff className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+            <span>
+              Cloud saves are offline (no database configured). Play as <b>Guest</b> — your progress is
+              stored on this device and survives page reloads.
+            </span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -207,6 +231,28 @@ export default function AuthModal({ onSuccess }: AuthModalProps) {
             )}
           </button>
         </form>
+
+        {/* Guest / offline play */}
+        <div className="mt-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-neutral-800" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">or</span>
+          <span className="h-px flex-1 bg-neutral-800" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGuestPlay}
+          className={`mt-4 w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] border ${
+            cloudAvailable
+              ? "bg-white/5 hover:bg-white/10 border-white/15 text-neutral-200"
+              : "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 border-emerald-400/60 text-white shadow-xl"
+          }`}
+        >
+          <Play className="w-4 h-4 fill-current" /> Play as Guest (no account)
+        </button>
+        <p className="text-[10px] text-neutral-500 text-center mt-2">
+          Guest progress is saved locally on this device — recruit heroes, upgrade stats and clear all 5 chapters.
+        </p>
 
         {/* Footer info */}
         <div className="mt-6 pt-4 border-t border-neutral-800/80 text-center">

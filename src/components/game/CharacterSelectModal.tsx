@@ -74,13 +74,15 @@ interface CharacterSelectModalProps {
   unlockedHeroes: string[];
   heroLevels: Record<string, number>;
   playerCoins: number;
+  /** Today's FEATURED spotlight hero (rotates daily). */
+  featuredHeroId?: string;
   onSelectHero: (heroId: string) => void;
   onUnlockHero: (heroId: string, cost: number) => void;
   onClose: () => void;
 }
 
 export default function CharacterSelectModal({
-  selectedHeroId, unlockedHeroes, heroLevels, playerCoins, onSelectHero, onUnlockHero, onClose,
+  selectedHeroId, unlockedHeroes, heroLevels, playerCoins, featuredHeroId, onSelectHero, onUnlockHero, onClose,
 }: CharacterSelectModalProps) {
   const [activeKey, setActiveKey] = useState<string>(selectedHeroId);
   const heroList = Object.values(HEROES);
@@ -156,8 +158,16 @@ export default function CharacterSelectModal({
                         </div>
                       )}
                       {chosen && (
-                        <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold shadow">
+                        <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold shadow z-10">
                           ACTIVE
+                        </div>
+                      )}
+                      {h.id === featuredHeroId && (
+                        <div
+                          className={`absolute ${chosen ? "top-7" : "top-1.5"} right-1.5 featured-ribbon px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider shadow`}
+                          title="Featured today: +25% XP and +10% coins on campaign victories"
+                        >
+                          ★ Featured
                         </div>
                       )}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 pt-4 pb-1 text-center">

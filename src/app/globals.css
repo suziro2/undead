@@ -228,3 +228,50 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   .realm-loader__stars span, .realm-loader__pulse, .realm-loader__progress span, .realm-loader__content, .realm-loader__hero { animation: none !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* FEATURED spotlight chrome (gold ornate frame + ribbon + shine)      */
+/* ------------------------------------------------------------------ */
+.featured-frame {
+  background: linear-gradient(140deg, #f6cf7d 0%, #b6822f 26%, #f8e3b0 52%, #8f5f1c 78%, #f2c469 100%);
+  padding: 6px;
+}
+
+.featured-frame__inner {
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(38, 33, 60, 0.96), rgba(11, 10, 18, 0.98) 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+  border: 1px solid rgba(255, 226, 160, 0.28);
+}
+
+.featured-ribbon {
+  background: linear-gradient(180deg, #fde68a, #f59e0b 55%, #b45309);
+  color: #2b1a02;
+  border: 1px solid rgba(255, 249, 226, 0.75);
+  box-shadow: 0 6px 18px -8px rgba(245, 158, 11, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  z-index: 2;
+}
+
+.featured-cta {
+  background: linear-gradient(180deg, #fde68a, #f59e0b 58%, #b45309);
+  border: 1px solid rgba(255, 240, 200, 0.6);
+  box-shadow: 0 12px 30px -14px rgba(245, 158, 11, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.featured-cta:hover {
+  background: linear-gradient(180deg, #fff1bf, #fbbf24 58%, #c2670f);
+}
+
+.featured-shine {
+  background: linear-gradient(105deg, transparent 34%, rgba(255, 240, 200, 0.13) 47%, transparent 60%);
+  background-size: 260% 100%;
+  animation: featured-shine 5.5s ease-in-out infinite;
+}
+
+@keyframes featured-shine {
+  0% { background-position: 180% 0; }
+  55%, 100% { background-position: -60% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featured-shine { animation: none; }
+}
