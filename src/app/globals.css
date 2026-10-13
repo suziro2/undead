@@ -317,3 +317,44 @@ button, input, select, textarea,
 @media (prefers-reduced-motion: reduce) {
  .realm-loader__stars span,.realm-loader__pulse,.realm-loader__progress span,.realm-loader__content,.realm-loader__hero { animation:none !important; }
 }
+
+
+/* Loading details and global retro game states */
+.realm-loader__percentage {
+  margin: 5px 0 8px;
+  color: #ffe08a;
+  font: 900 18px/1 "Courier New", monospace;
+  text-shadow: 2px 2px #6b3546;
+}
+.realm-loader__tip {
+  min-height: 32px;
+  max-width: 420px;
+  margin: 0 auto 12px;
+  color: #c5d6dc;
+  font: 700 11px/1.5 "Courier New", monospace;
+}
+.realm-loader__error {
+  margin: 12px 0;
+  padding: 10px;
+  text-align: left;
+  border: 2px solid #ef7777;
+  background: #351820;
+  color: #ffe1df;
+  font: 700 11px/1.5 "Courier New", monospace;
+}
+.realm-loader__error-actions { display:flex;gap:8px;flex-wrap:wrap;margin-top:8px; }
+.realm-loader__error-actions button {
+  padding: 8px 10px;
+  border: 2px solid #ffd166;
+  background: #273650;
+  color: #ffe8a3;
+  font: 800 10px "Courier New", monospace;
+  cursor:pointer;
+}
+.realm-loader__error-actions button:hover { background:#3e5273; }
+.realm-loader__content { max-height: calc(100svh - 32px); overflow-y:auto; }
+@media(max-width:520px) {
+  .realm-loader__content { width:calc(100vw - 24px);margin:12px;padding:18px 14px; }
+  .realm-loader__hero { width:clamp(50px,18vw,72px); }
+  .realm-loader__tip { font-size:10px; }
+}
