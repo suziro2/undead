@@ -73,8 +73,19 @@ export function waitForSprites(
       };
       image.onerror = () => settle(false);
       image.src = src;
-      if (image.complete && image.naturalWidth > 0) {
-        void image.decode?.().catch(() => undefined).then(() => settle(image.naturalWidth > 0));
+      if (image.complete) {
+        if (image.naturalWidth > 0) {
+          if (typeof image.decode === "function") {
+            image.decode().then(
+              () => settle(image.naturalWidth > 0),
+              () => settle(image.naturalWidth > 0),
+            );
+          } else {
+            settle(image.naturalWidth > 0);
+          }
+        } else {
+          settle(false);
+        }
       }
     });
   });
