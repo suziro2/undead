@@ -676,6 +676,253 @@ const mk = (
   isRanged,
 });
 
+export const CHAPTERS: ChapterDef[] = [
+  {
+    id: 1,
+    title: "Chapter 1",
+    subtitle: "The Cursed Village",
+    environmentName: "Abandoned Village & Ruined Cottages",
+    themeColor: "#64748b",
+    bgGradient: "from-stone-900 via-neutral-900 to-zinc-950",
+    description: "Ruined cottages overrun by shambling undead and feral cursed wolves.",
+    arenaPalette: ["#2a2622", "#3a342c", "#191512", "#6b5b45", "#4b4033", "#8a7a5f"],
+    terrainKind: "rock",
+    levels: [
+      { levelNumber: 1, title: "Outskirts Infiltration", waveCount: 3, enemiesPerWave: 4, enemyTypes: ["zombie", "cursed_wolf"], eliteTypes: ["zombie"], rewardCoins: 60, rewardXp: 80, isBossLevel: false },
+      { levelNumber: 2, title: "Graveyard Ambush", waveCount: 3, enemiesPerWave: 5, enemyTypes: ["zombie", "skeleton"], eliteTypes: ["skeleton"], rewardCoins: 80, rewardXp: 110, isBossLevel: false },
+      { levelNumber: 3, title: "Ruined Town Hall", waveCount: 4, enemiesPerWave: 5, enemyTypes: ["undead_warrior", "cursed_wolf", "skeleton"], eliteTypes: ["undead_warrior"], rewardCoins: 110, rewardXp: 140, isBossLevel: false },
+      { levelNumber: 4, title: "The Belfry Gates", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["undead_warrior", "cursed_wolf", "zombie"], eliteTypes: ["undead_warrior", "skeleton"], rewardCoins: 140, rewardXp: 180, isBossLevel: false },
+      { levelNumber: 5, title: "Warlord's Keep", waveCount: 2, enemiesPerWave: 3, enemyTypes: ["undead_warrior", "skeleton"], eliteTypes: ["undead_warrior"], rewardCoins: 350, rewardXp: 400, isBossLevel: true },
+    ],
+    boss: {
+      key: "undead_warlord",
+      name: "The Undead Warlord",
+      title: "Scourge of the Village",
+      avatar: "💀",
+      image: monsterPortrait({
+        bg1: "#2b2f38", bg2: "#12141a", body: "#7c8698", dark: "#39414f", eye: "#7dd3fc",
+        feature: "helm", aura: "#38bdf8",
+      }),
+      sprite: {
+        shape: "knight", headgear: "horns", weapon: "greatsword", scale: 6,
+        colors: { skin: "#cbd5e1", hair: "#94a3b8", armor: "#64748b", accent: "#cbd5e1", cape: "#334155", weapon: "#e2e8f0", dark: "#1f2937" },
+      },
+      hp: 3200, atk: 48, def: 25, spd: 2.2, color: "#94a3b8",
+      abilities: ["Heavy Sword Cleave", "Minion Summoning", "Corrupting Roar"],
+      description: "A colossal reanimated warlord commanding endless hordes.",
+      specialSkillName: "Cursed Greatsword Cleave",
+    },
+    completionReward: {
+      coins: 400, xp: 500,
+      item: { id: "ch1_reward", name: "Bonecleaver Sword", type: "weapon", rarity: "rare", atk: 25, hp: 60, def: 10, crit: 0.05 },
+    },
+  },
+  {
+    id: 2,
+    title: "Chapter 2",
+    subtitle: "The Dark Forest",
+    environmentName: "Poisonous Swamps & Ancient Woods",
+    themeColor: "#15803d",
+    bgGradient: "from-emerald-950 via-teal-950 to-slate-950",
+    description: "Mist-shrouded swamp filled with corrupted beasts and venomous vines.",
+    arenaPalette: ["#15301f", "#1d4028", "#0b1a11", "#2f6b3d", "#3f8a4a", "#58a860"],
+    terrainKind: "tree",
+    levels: [
+      { levelNumber: 1, title: "Poison Path Entrance", waveCount: 3, enemiesPerWave: 5, enemyTypes: ["goblin", "corrupted_wolf"], eliteTypes: ["goblin"], rewardCoins: 160, rewardXp: 210, isBossLevel: false },
+      { levelNumber: 2, title: "Murky Bog", waveCount: 4, enemiesPerWave: 5, enemyTypes: ["poisonous_creature", "forest_spirit"], eliteTypes: ["poisonous_creature"], rewardCoins: 190, rewardXp: 250, isBossLevel: false },
+      { levelNumber: 3, title: "Ancient Canopy", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["goblin", "poisonous_creature", "forest_spirit"], eliteTypes: ["forest_spirit"], rewardCoins: 230, rewardXp: 300, isBossLevel: false },
+      { levelNumber: 4, title: "Deep Briar Thicket", waveCount: 4, enemiesPerWave: 7, enemyTypes: ["corrupted_wolf", "forest_spirit", "goblin"], eliteTypes: ["corrupted_wolf"], rewardCoins: 280, rewardXp: 360, isBossLevel: false },
+      { levelNumber: 5, title: "Heart of the Elder Grove", waveCount: 2, enemiesPerWave: 4, enemyTypes: ["forest_spirit", "corrupted_wolf"], eliteTypes: ["forest_spirit"], rewardCoins: 600, rewardXp: 750, isBossLevel: true },
+    ],
+    boss: {
+      key: "forest_guardian",
+      name: "The Ancient Forest Guardian",
+      title: "Corrupted Treant Colossus",
+      avatar: "🌳",
+      image: monsterPortrait({
+        bg1: "#123a22", bg2: "#06170e", body: "#2f6b3d", dark: "#14331f", eye: "#facc15",
+        feature: "antlers", aura: "#4ade80",
+      }),
+      sprite: {
+        shape: "treant", headgear: "antlers", weapon: "claw", scale: 6,
+        colors: { skin: "#5b4a2f", hair: "#2f6b3d", armor: "#3f6b3a", accent: "#58a860", cape: "#14532d", weapon: "#86efac", dark: "#14331f" },
+      },
+      hp: 5800, atk: 65, def: 35, spd: 2.0, color: "#22c55e",
+      abilities: ["Root Slam Entangle", "Poison Spore Burst", "Thorny Shockwave"],
+      description: "A corrupted timber behemoth spewing deadly poisonous spores.",
+      specialSkillName: "Gargantuan Root Quake",
+    },
+    completionReward: {
+      coins: 700, xp: 850,
+      item: { id: "ch2_reward", name: "Barkweave Cuirass", type: "armor", rarity: "rare", atk: 15, hp: 180, def: 24, crit: 0.03 },
+    },
+  },
+  {
+    id: 3,
+    title: "Chapter 3",
+    subtitle: "The Frozen Kingdom",
+    environmentName: "Snow Castles & Glacial Precipices",
+    themeColor: "#0284c7",
+    bgGradient: "from-sky-950 via-slate-900 to-indigo-950",
+    description: "Perpetual blizzards over shattered crystal fortresses and frozen dead.",
+    arenaPalette: ["#1d3b57", "#28506f", "#101f30", "#7dd3fc", "#bae6fd", "#e0f2fe"],
+    terrainKind: "crystal",
+    levels: [
+      { levelNumber: 1, title: "Glacial Approach", waveCount: 3, enemiesPerWave: 5, enemyTypes: ["ice_warrior", "frost_skeleton"], eliteTypes: ["ice_warrior"], rewardCoins: 300, rewardXp: 400, isBossLevel: false },
+      { levelNumber: 2, title: "Frozen Moat", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["ice_beast", "frost_skeleton"], eliteTypes: ["ice_beast"], rewardCoins: 360, rewardXp: 460, isBossLevel: false },
+      { levelNumber: 3, title: "Crystal Cavern", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["frozen_mage", "ice_warrior", "ice_beast"], eliteTypes: ["frozen_mage"], rewardCoins: 420, rewardXp: 530, isBossLevel: false },
+      { levelNumber: 4, title: "Throne of White Frost", waveCount: 5, enemiesPerWave: 6, enemyTypes: ["frozen_mage", "ice_warrior", "frost_skeleton"], eliteTypes: ["ice_warrior"], rewardCoins: 480, rewardXp: 600, isBossLevel: false },
+      { levelNumber: 5, title: "The Wyrm's Eyrie", waveCount: 2, enemiesPerWave: 4, enemyTypes: ["ice_beast", "frozen_mage"], eliteTypes: ["frozen_mage"], rewardCoins: 1100, rewardXp: 1300, isBossLevel: true },
+    ],
+    boss: {
+      key: "frost_dragon",
+      name: "The Frost Dragon",
+      title: "Glacial Devourer",
+      avatar: "🐲",
+      image: monsterPortrait({
+        bg1: "#0f2f52", bg2: "#061526", body: "#3f8fc4", dark: "#123a5c", eye: "#67e8f9",
+        feature: "wings", aura: "#38bdf8",
+      }),
+      sprite: {
+        shape: "dragon", headgear: "horns", weapon: "claw", scale: 5,
+        colors: { skin: "#bae6fd", hair: "#7dd3fc", armor: "#3f8fc4", accent: "#bae6fd", cape: "#1d4e73", weapon: "#e0f2fe", dark: "#123a5c" },
+      },
+      hp: 9200, atk: 84, def: 42, spd: 2.5, color: "#38bdf8",
+      abilities: ["Glacial Breath", "Frost Nova Burst", "Tail Sweep Avalanche"],
+      description: "An ancient winged terror whose breath flash-freezes warriors.",
+      specialSkillName: "Absolute Zero Blizzard",
+    },
+    completionReward: {
+      coins: 1200, xp: 1400,
+      item: { id: "ch3_reward", name: "Glacial Frost Amulet", type: "accessory", rarity: "epic", atk: 35, hp: 220, def: 20, crit: 0.1 },
+    },
+  },
+  {
+    id: 4,
+    title: "Chapter 4",
+    subtitle: "The Demon Fortress",
+    environmentName: "Molten Lava Chambers & Iron Bastions",
+    themeColor: "#b91c1c",
+    bgGradient: "from-red-950 via-zinc-950 to-orange-950",
+    description: "Rivers of magma flowing through hellish spires and demonic citadels.",
+    arenaPalette: ["#3a1414", "#4d1b16", "#1c0a0a", "#f97316", "#fb923c", "#fbbf24"],
+    terrainKind: "lava",
+    levels: [
+      { levelNumber: 1, title: "The Magma Gates", waveCount: 4, enemiesPerWave: 5, enemyTypes: ["demon_grunt", "dark_knight"], eliteTypes: ["demon_grunt"], rewardCoins: 520, rewardXp: 650, isBossLevel: false },
+      { levelNumber: 2, title: "Sulfur Crucible", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["cursed_archer", "demon_grunt"], eliteTypes: ["cursed_archer"], rewardCoins: 600, rewardXp: 740, isBossLevel: false },
+      { levelNumber: 3, title: "Chamber of Torment", waveCount: 4, enemiesPerWave: 7, enemyTypes: ["dark_knight", "elite_shadow_creature"], eliteTypes: ["dark_knight"], rewardCoins: 700, rewardXp: 850, isBossLevel: false },
+      { levelNumber: 4, title: "Infernal Ramparts", waveCount: 5, enemiesPerWave: 7, enemyTypes: ["cursed_archer", "dark_knight", "elite_shadow_creature"], eliteTypes: ["elite_shadow_creature"], rewardCoins: 820, rewardXp: 980, isBossLevel: false },
+      { levelNumber: 5, title: "Throne of the Abyss", waveCount: 2, enemiesPerWave: 5, enemyTypes: ["elite_shadow_creature", "dark_knight"], eliteTypes: ["dark_knight"], rewardCoins: 1800, rewardXp: 2200, isBossLevel: true },
+    ],
+    boss: {
+      key: "demon_king",
+      name: "The Demon King",
+      title: "Lord of the Brimstone Throne",
+      avatar: "👹",
+      image: monsterPortrait({
+        bg1: "#450a0a", bg2: "#1c0404", body: "#a3231c", dark: "#4a0d0a", eye: "#fbbf24",
+        feature: "horns", aura: "#f97316",
+      }),
+      sprite: {
+        shape: "knight", headgear: "horns", weapon: "greatsword", scale: 7,
+        colors: { skin: "#e07a5f", hair: "#7f1d1d", armor: "#a3231c", accent: "#fbbf24", cape: "#4a0d0a", weapon: "#fb923c", dark: "#2b0a08" },
+      },
+      hp: 14000, atk: 105, def: 50, spd: 2.8, color: "#ef4444",
+      abilities: ["Hellfire Teleport", "Infernal Meteor Strike", "Bloodrage Slashes"],
+      description: "An infernal sovereign with brimstone blades and fire teleports.",
+      specialSkillName: "Cataclysmic Hellfire Storm",
+    },
+    completionReward: {
+      coins: 2000, xp: 2500,
+      item: { id: "ch4_reward", name: "Hellflame Greatblade", type: "weapon", rarity: "epic", atk: 65, hp: 150, def: 25, crit: 0.12 },
+    },
+  },
+  {
+    id: 5,
+    title: "Chapter 5",
+    subtitle: "The Shadow Realm",
+    environmentName: "Void Dimensions & Floating Citadels",
+    themeColor: "#6b21a8",
+    bgGradient: "from-purple-950 via-neutral-950 to-violet-950",
+    description: "A tear in reality where void energy swirls around eternal shadow ruins.",
+    arenaPalette: ["#241436", "#31194a", "#120a1c", "#a855f7", "#c084fc", "#e9d5ff"],
+    terrainKind: "pillar",
+    levels: [
+      { levelNumber: 1, title: "Void Threshold", waveCount: 4, enemiesPerWave: 6, enemyTypes: ["shadow_assassin", "elite_undead"], eliteTypes: ["shadow_assassin"], rewardCoins: 900, rewardXp: 1100, isBossLevel: false },
+      { levelNumber: 2, title: "Floating Necropolis", waveCount: 4, enemiesPerWave: 7, enemyTypes: ["dark_mage", "shadow_assassin"], eliteTypes: ["dark_mage"], rewardCoins: 1050, rewardXp: 1300, isBossLevel: false },
+      { levelNumber: 3, title: "Corrupted Cathedral", waveCount: 5, enemiesPerWave: 7, enemyTypes: ["corrupted_warrior", "elite_undead", "dark_mage"], eliteTypes: ["elite_undead"], rewardCoins: 1250, rewardXp: 1550, isBossLevel: false },
+      { levelNumber: 4, title: "Sanctum of the Eclipse", waveCount: 5, enemiesPerWave: 8, enemyTypes: ["shadow_assassin", "corrupted_warrior", "dark_mage"], eliteTypes: ["corrupted_warrior"], rewardCoins: 1500, rewardXp: 1850, isBossLevel: false },
+      { levelNumber: 5, title: "The Ultimate Void Throne", waveCount: 3, enemiesPerWave: 5, enemyTypes: ["corrupted_warrior", "shadow_assassin"], eliteTypes: ["dark_mage"], rewardCoins: 3500, rewardXp: 5000, isBossLevel: true },
+    ],
+    boss: {
+      key: "shadow_overlord",
+      name: "The Shadow Overlord",
+      title: "Harbinger of the End Times",
+      avatar: "👑",
+      image: monsterPortrait({
+        bg1: "#2b1450", bg2: "#100620", body: "#5b21b6", dark: "#241040", eye: "#e879f9",
+        feature: "crown", aura: "#a855f7",
+      }),
+      sprite: {
+        shape: "knight", headgear: "crown", weapon: "greatsword", scale: 8,
+        colors: { skin: "#c4b5fd", hair: "#4c1d95", armor: "#5b21b6", accent: "#e879f9", cape: "#1e1038", weapon: "#c084fc", dark: "#160a28" },
+      },
+      hp: 22000, atk: 135, def: 62, spd: 3.2, color: "#a855f7",
+      abilities: ["Shadow Clone Projection", "Dimensional Warp", "Void Collapse Wave", "Dark Singularity"],
+      description: "The ultimate terror: splits into clones, warps across the arena and collapses reality.",
+      specialSkillName: "Singularity of Eternal Eclipse",
+    },
+    completionReward: {
+      coins: 5000, xp: 8000,
+      item: { id: "ch5_reward", name: "Regalia of the Void Conqueror", type: "armor", rarity: "legendary", atk: 90, hp: 450, def: 55, crit: 0.18 },
+    },
+  },
+];
+
+export interface EnemyTypeData {
+  key: string;
+  name: string;
+  avatar: string;
+  image: string;
+  sprite: SpriteKit;
+  baseHp: number;
+  baseAtk: number;
+  speed: number;
+  color: string;
+  attackRange: number;
+  isRanged?: boolean;
+}
+
+const mk = (
+  key: string,
+  name: string,
+  avatar: string,
+  shape: SpriteKit["shape"],
+  headgear: SpriteKit["headgear"],
+  weapon: SpriteKit["weapon"],
+  colors: SpriteKit["colors"],
+  baseHp: number,
+  baseAtk: number,
+  speed: number,
+  color: string,
+  attackRange: number,
+  portrait: { bg1: string; bg2: string; body: string; dark: string; eye: string; feature: any; aura?: string },
+  isRanged?: boolean,
+  scale = 4
+): EnemyTypeData => ({
+  key,
+  name,
+  avatar,
+  image: monsterPortrait(portrait),
+  sprite: { shape, headgear, weapon, colors, scale },
+  baseHp,
+  baseAtk,
+  speed,
+  color,
+  attackRange,
+  isRanged,
+});
+
 export const ENEMY_TYPES: Record<string, EnemyTypeData> = {
   zombie: mk("zombie", "Shambling Zombie", "🧟", "humanoid", "none", "claw",
     { skin: "#9db86a", hair: "#4d5f2c", armor: "#5f7a35", accent: "#a3c465", cape: "#3c4a22", weapon: "#d8e6b0", dark: "#2b3318" },
