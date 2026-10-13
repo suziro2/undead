@@ -55,17 +55,13 @@ export default function GameRootPage() {
     async function loadCriticalAssets() {
       try {
         const imageSources: string[] = Object.values(HEROES).map((hero) => hero.image);
-        // All chapters define their battle enemies by type key; include every referenced portrait.
+        // Cover the entire first playable set: all hero portraits, every enemy type,
+        // all boss portraits, and all chapter backgrounds that are preloaded as images.
+        Object.values(ENEMY_TYPES).forEach((enemy: any) => {
+          if (enemy?.image) imageSources.push(enemy.image);
+        });
         CHAPTERS.forEach((chapter: any) => {
           if (chapter?.boss?.image) imageSources.push(chapter.boss.image);
-          if (Array.isArray(chapter?.levels)) {
-            chapter.levels.forEach((level: any) => {
-              (level?.enemyTypes || []).forEach((enemyKey: string) => {
-                const enemy = ENEMY_TYPES[enemyKey];
-                if (enemy?.image) imageSources.push(enemy.image);
-              });
-            });
-          }
         });
         preloadSprites(imageSources);
         const result = await waitForSprites(imageSources, (loaded, total) => {
