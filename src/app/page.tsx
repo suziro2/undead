@@ -43,6 +43,7 @@ export default function GameRootPage() {
 
   // Gate the app on the session request and actual critical-artwork preload.
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [assetLoadError, setAssetLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -86,7 +87,6 @@ export default function GameRootPage() {
     return () => { cancelled = true; };
   }, [loadAttempt]);
 
-  const [loadProgress, setLoadProgress] = useState(0);
   const retryAssetLoading = () => {
     setLoadProgress(0);
     setLoadAttempt((attempt) => attempt + 1);
@@ -336,8 +336,8 @@ export default function GameRootPage() {
 
   // Keep the cinematic loading screen up until both the session check and
   // the minimum 8-second intro have finished.
-  if (!authState.loaded || !minimumLoadingComplete) {
-    return <LoadingScreen />;
+  if (!authState.loaded || !assetsLoaded) {
+    return <LoadingScreen progress={loadProgress} error={assetLoadError} onRetry={retryAssetLoading} />;
   }
 
   // Not authenticated: Show Login & Register Screen
